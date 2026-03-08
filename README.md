@@ -1,4 +1,4 @@
-# 🪁 DX — Daily Music Discovery
+# 🪁 Generate Spotify Playlist featuring the latest Hip-Hop & R&B tracks
 
 Scrapes new tracks from curated Tidal playlists and exports them directly into a new Spotify playlist.
 
@@ -26,7 +26,8 @@ That's it. The script handles everything automatically from start to finish.
    🪁 DX 02-20-26
    ```
 4. **All found tracks are added** to that playlist automatically
-5. **A Keyboard Maestro macro is triggered** _(optional)_ — if `KM_MACRO_UUID` is set in `.env`, the macro is fired via `osascript` at the very end
+5. **The playlist opens in the Spotify desktop app** automatically once it's been created
+6. **A Keyboard Maestro macro is triggered** _(optional)_ — if `KM_MACRO_UUID` is set in `.env`, the macro is fired via `osascript` at the very end
 
 > If a track exists on multiple Tidal playlists, duplicates are removed before export.
 
@@ -73,3 +74,43 @@ KM_MACRO_UUID=your_macro_uuid   # optional — omit to skip the KM trigger
 
 Get these from the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
 Make sure `http://127.0.0.1:8888/callback` is added as a Redirect URI in your app settings.
+
+---
+
+## 🍎 Run from Anywhere (AppleScript)
+
+You can trigger the full pipeline from anywhere on your Mac — via **Script Editor**, **Raycast**, **Alfred**, **Keyboard Maestro**,or any AppleScript-compatible launcher.
+
+Save the following as a `.scpt` file in Script Editor:
+
+```applescript
+set projectPath to "your path here"
+
+-- Run the Python script and capture output
+set scriptOutput to do shell script "cd " & quoted form of projectPath & " && python3 track_playlists.py"
+
+-- Find the Spotify URI from the output
+set spotifyURI to ""
+repeat with outputLine in paragraphs of scriptOutput
+    if outputLine starts with "SPOTIFY_URI:" then
+        set spotifyURI to text 13 thru -1 of outputLine
+        exit repeat
+    end if
+end repeat
+
+-- Open the playlist in the Spotify desktop app
+if spotifyURI is not "" then
+    tell application "Spotify"
+        activate
+        open location spotifyURI
+    end tell
+else
+    display dialog "Playlist was created but could not find the Spotify URI in the script output." buttons {"OK"} default button "OK"
+end if
+```
+
+**How it works:**
+
+1. Runs `track_playlists.py`, which scrapes Tidal and calls `export_to_spotify.py`
+2. `export_to_spotify.py` prints a `SPOTIFY_URI:` tag after the playlist is created
+3. AppleScript captures that URI and opens the playlist directly in the **Spotify desktop app**

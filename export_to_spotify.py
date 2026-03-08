@@ -158,6 +158,8 @@ def main():
             print(f"Successfully added {len(track_uris)} tracks to '{playlist_name}'.")
         else:
             print("No tracks were found on Spotify to add.")
+
+        print(f"SPOTIFY_URI:spotify:playlist:{playlist_id}")
             
         if not_found:
             print(f"\nCould not find {len(not_found)} tracks:")

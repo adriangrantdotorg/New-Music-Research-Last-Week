@@ -143,7 +143,14 @@ async def main():
         # Trigger Spotify Export
         print("\n--- Starting Spotify Export ---")
         try:
-            subprocess.run(["python3", "export_to_spotify.py", output_file], check=True)
+            result = subprocess.run(
+                ["python3", "export_to_spotify.py", output_file],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            # Print all output so SPOTIFY_URI: tag is visible to AppleScript
+            print(result.stdout)
         except subprocess.CalledProcessError as e:
             print(f"Error running Spotify export: {e}")
         except Exception as e:
