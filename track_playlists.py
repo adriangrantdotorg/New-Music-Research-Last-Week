@@ -109,8 +109,8 @@ async def scrape_playlist(page, playlist):
             await page.evaluate('document.getElementById("main").scrollBy(0, 600)')
             await asyncio.sleep(0.8)
 
-        # Filter to only recent tracks (today / yesterday / this week)
-        recent_keywords = {"today", "yesterday", "this week"}
+        # Filter to only tracks added last week
+        recent_keywords = {"last week"}
         tracks_data = [
             t for t in all_tracks
             if t["Date Added"].strip().lower() in recent_keywords
@@ -187,7 +187,7 @@ async def main():
             print(f"An error occurred: {e}")
             
     else:
-        print("\nNo matching tracks found (Yesterday/This Week).")
+        print("\nNo matching tracks found (Last Week).")
         # Create empty CSV with headers just in case
         keys = ["Title", "Artist", "Album", "Source Playlist", "Date Added"]
         with open(output_file, 'w', newline='', encoding='utf-8') as f:

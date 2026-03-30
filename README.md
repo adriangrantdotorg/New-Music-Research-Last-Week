@@ -1,6 +1,6 @@
-# 🪁 Generate Spotify Playlist featuring the latest Hip-Hop & R&B tracks
+# 🪁 Generate Spotify Playlist featuring last week's Hip-Hop & R&B tracks
 
-Scrapes new tracks from curated Tidal playlists and exports them directly into a new Spotify playlist.
+Scrapes tracks added **Last Week** from curated Tidal playlists and exports them directly into a new Spotify playlist.
 
 ---
 
@@ -16,7 +16,7 @@ That's it. The script handles everything automatically from start to finish.
 
 ## ✅ What to Expect
 
-1. **Tidal is scraped** — every playlist in `playlists.json` is visited and checked for tracks added **Today**, **Yesterday**, or **This Week**
+1. **Tidal is scraped** — every playlist in `playlists.json` is visited and checked for tracks added **Last Week**
    - All artists on a track are captured (not just the first), so featuring/co-artist info is preserved
 2. **A CSV is saved** — a timestamped file is created in the `scraped-files` folder, e.g.:
    ```
@@ -46,7 +46,7 @@ That's it. The script handles everything automatically from start to finish.
 
 The project organizes its output into two main directories:
 
-- **`scraped-files/`** — Stores timestamped CSVs of every matching track found on Tidal (Today/Yesterday/This Week). These serve as a historical record of what was "scraped" before the Spotify matching process begins.
+- **`scraped-files/`** — Stores timestamped CSVs of every matching track found on Tidal (Last Week). These serve as a historical record of what was "scraped" before the Spotify matching process begins.
 - **`missed-tracks/`** — If a track found on Tidal cannot be confidently matched on Spotify (e.g., due to different artist formatting or if the track is not yet on Spotify), it is saved here in a `MISSED` CSV. This makes it easy to manually find and add any tracks the script couldn't automate.
 
 ---
