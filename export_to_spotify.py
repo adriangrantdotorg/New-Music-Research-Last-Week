@@ -1,4 +1,10 @@
 import base64
+import io
+try:
+    from PIL import Image as _PILImage
+    _PIL_AVAILABLE = True
+except ImportError:
+    _PIL_AVAILABLE = False
 import csv
 import glob
 import os
@@ -17,7 +23,9 @@ CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
 SCOPE = "playlist-modify-public playlist-modify-private ugc-image-upload"
-ARTWORK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Playlist-Artwork.jpg")
+# Support both .jpeg and .jpg
+_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Playlist-Artwork")
+ARTWORK_PATH = _base + ".jpeg" if os.path.exists(_base + ".jpeg") else _base + ".jpg"
 
 def get_latest_csv():
     """Finds the most recently created SCRAPED csv file."""
@@ -71,6 +79,35 @@ def spotify_call(fn, *args, **kwargs):
                 print("  ↩️  Retrying...")
             else:
                 raise
+
+def compress_artwork(path, max_b64_bytes=180_000):
+    """
+    Returns a Base64-encoded JPEG string that fits within Spotify's image upload
+    limit (~256KB base64 / ~190KB raw). Shrinks the image progressively if needed.
+    Requires Pillow. Falls back to raw encoding if Pillow is unavailable.
+    """
+    if not _PIL_AVAILABLE:
+        with open(path, 'rb') as f:
+            return base64.b64encode(f.read()).decode('utf-8')
+
+    img = _PILImage.open(path).convert('RGB')
+    quality = 85
+    scale = 1.0
+
+    while True:
+        w = int(img.width * scale)
+        h = int(img.height * scale)
+        resized = img.resize((w, h), _PILImage.LANCZOS)
+        buf = io.BytesIO()
+        resized.save(buf, format='JPEG', quality=quality)
+        b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        if len(b64) <= max_b64_bytes or (quality <= 40 and scale <= 0.3):
+            return b64
+        # Try lowering quality first, then shrink dimensions
+        if quality > 40:
+            quality -= 10
+        else:
+            scale -= 0.1
 
 def main():
     # 1. basic setup
@@ -213,30 +250,35 @@ def main():
     try:
         playlist = spotify_call(sp.user_playlist_create, user_id, playlist_name, public=False)
         playlist_id = playlist['id']
+    except Exception as e:
+        print(f"Error creating playlist: {e}")
+        return
 
-        # Upload custom artwork
-        if os.path.exists(ARTWORK_PATH):
-            with open(ARTWORK_PATH, 'rb') as img_file:
-                image_b64 = base64.b64encode(img_file.read()).decode('utf-8')
-            spotify_call(sp.playlist_upload_cover_image, playlist_id, image_b64)
-            print("  🎨 Artwork uploaded.")
-        else:
-            print(f"  ⚠️  Artwork not found at {ARTWORK_PATH} — skipping.")
-        
-        # 6. Add Tracks
-        if track_uris:
+    # 6. Add Tracks first (artwork is separate — a 413 must never block track upload)
+    if track_uris:
+        try:
             # Add in chunks of 100 as per API limits
             for i in range(0, len(track_uris), 100):
                 chunk = track_uris[i:i+100]
                 spotify_call(sp.playlist_add_items, playlist_id, chunk)
             print(f"Successfully added {len(track_uris)} tracks to '{playlist_name}'.")
-        else:
-            print("No tracks were found on Spotify to add.")
+        except Exception as e:
+            print(f"Error adding tracks: {e}")
+    else:
+        print("No tracks were found on Spotify to add.")
 
-        print(f"SPOTIFY_URI:spotify:playlist:{playlist_id}")
+    print(f"SPOTIFY_URI:spotify:playlist:{playlist_id}")
 
-    except Exception as e:
-        print(f"Error creating/filling playlist: {e}")
+    # 7. Upload artwork — isolated so failure never affects tracks
+    if os.path.exists(ARTWORK_PATH):
+        try:
+            image_b64 = compress_artwork(ARTWORK_PATH)
+            spotify_call(sp.playlist_upload_cover_image, playlist_id, image_b64)
+            print("  🎨 Artwork uploaded.")
+        except Exception as e:
+            print(f"  ⚠️  Artwork upload failed: {e}")
+    else:
+        print(f"  ⚠️  Artwork not found at {ARTWORK_PATH} — skipping.")
 
     # 7. Save omitted tracks to missed-tracks/
     if omitted:
